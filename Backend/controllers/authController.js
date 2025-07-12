@@ -5,7 +5,7 @@ const { sendTokenResponse } = require('../utils/jwt');
 // @route   POST /api/auth/signup
 // @access  Public
 const signup = async (req, res, next) => {
-  const { username, email, password } = req.body;
+  const { username, email, password, role } = req.body;
 
   try {
     // Check if user already exists
@@ -20,12 +20,16 @@ const signup = async (req, res, next) => {
       });
     }
 
-    // Create user
-    const user = await User.create({
-      username,
-      email,
-      password
-    });
+    // Only allow guest signup with minimal info
+    let user;
+    if (role === 'guest') {
+      if (!username) {
+        return res.status(400).json({ success: false, message: 'Username is required for guest signup' });
+      }
+      user = await User.create({ username, role: 'guest', email: `${username}+guest@guest.com`, password: 'guestpassword' });
+    } else {
+      user = await User.create({ username, email, password, role: role || 'user' });
+    }
 
     sendTokenResponse(user, 201, res);
   } catch (error) {
@@ -37,27 +41,34 @@ const signup = async (req, res, next) => {
 // @route   POST /api/auth/login
 // @access  Public
 const login = async (req, res, next) => {
-  const { email, password } = req.body;
+  const { email, password, role, username } = req.body;
 
   try {
-    // Check for user
-    const user = await User.findOne({ email }).select('+password');
-
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid credentials'
-      });
-    }
-
-    // Check if password matches
-    const isMatch = await user.comparePassword(password);
-
-    if (!isMatch) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid credentials'
-      });
+    let user;
+    if (role === 'guest') {
+      // Guest login by username
+      user = await User.findOne({ username, role: 'guest' });
+      if (!user) {
+        return res.status(401).json({ success: false, message: 'Guest user not found' });
+      }
+      // No password check for guest
+    } else {
+      // Check for user
+      user = await User.findOne({ email }).select('+password');
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid credentials'
+        });
+      }
+      // Check if password matches
+      const isMatch = await user.comparePassword(password);
+      if (!isMatch) {
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid credentials'
+        });
+      }
     }
 
     // Check if user is banned

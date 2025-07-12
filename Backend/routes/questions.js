@@ -12,19 +12,21 @@ const {
   validateObjectId,
   validateQuestionQuery
 } = require('../middleware/validation');
-const { protect, optionalAuth } = require('../middleware/auth');
+const { protect, optionalAuth, guestViewOnly } = require('../middleware/auth');
 
 const router = express.Router();
 
+
 router.route('/')
   .get(validateQuestionQuery, optionalAuth, getQuestions)
-  .post(protect, validateQuestion, createQuestion);
+  .post(protect, guestViewOnly, validateQuestion, createQuestion);
 
 router.get('/tags', getPopularTags);
 
+
 router.route('/:id')
   .get(validateObjectId('id'), optionalAuth, getQuestion)
-  .put(validateObjectId('id'), protect, validateQuestion, updateQuestion)
-  .delete(validateObjectId('id'), protect, deleteQuestion);
+  .put(validateObjectId('id'), protect, guestViewOnly, validateQuestion, updateQuestion)
+  .delete(validateObjectId('id'), protect, guestViewOnly, deleteQuestion);
 
 module.exports = router;

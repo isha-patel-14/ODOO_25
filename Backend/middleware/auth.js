@@ -61,6 +61,19 @@ const authorize = (...roles) => {
   };
 };
 
+// Only allow guests to view (GET) endpoints
+const guestViewOnly = (req, res, next) => {
+  if (req.user && req.user.role === 'guest' && req.method !== 'GET') {
+    return res.status(403).json({
+      success: false,
+      message: 'Guest users can only view content.'
+    });
+  }
+  next();
+};
+
+module.exports.guestViewOnly = guestViewOnly;
+
 // Optional auth (for guest access)
 const optionalAuth = async (req, res, next) => {
   try {
